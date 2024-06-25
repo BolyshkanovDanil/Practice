@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk, ImageOps
+from PIL import Image, ImageTk, ImageOps, ImageDraw
 import cv2
 import numpy as np
 
@@ -20,17 +20,15 @@ class ImageEditorApp:
 
         self.channel_var = tk.StringVar()
         self.channel_var.set("red")
-        self.channel_menu = tk.OptionMenu(root, self.channel_var, "red", "green", "blue")
+        self.channel_menu = tk.OptionMenu(root, self.channel_var, "red", "green", "blue", command=self.show_channel)
         self.channel_menu.pack()
-
-        self.show_channel_button = tk.Button(root, text="Показать канал", command=self.show_channel)
-        self.show_channel_button.pack()
 
         self.show_negative_button = tk.Button(root, text="Показать негативное изображение", command=self.show_negative)
         self.show_negative_button.pack()
 
         self.rotate_angle_entry = tk.Entry(root)
         self.rotate_angle_entry.pack()
+        self.rotate_angle_entry.bind("<Return>", self.rotate_image)
         self.rotate_button = tk.Button(root, text="Вращение изображения", command=self.rotate_image)
         self.rotate_button.pack()
 
@@ -38,6 +36,8 @@ class ImageEditorApp:
         self.circle_coords_entry.pack()
         self.circle_diameter_entry = tk.Entry(root)
         self.circle_diameter_entry.pack()
+        self.circle_coords_entry.bind("<Return>", self.draw_circle)
+        self.circle_diameter_entry.bind("<Return>", self.draw_circle)
         self.draw_circle_button = tk.Button(root, text="Нарисовать красный круг", command=self.draw_circle)
         self.draw_circle_button.pack()
 
@@ -57,6 +57,7 @@ class ImageEditorApp:
                 self.original_image = Image.open(file_path)
                 self.display_image = self.original_image.copy()
                 self.show_image()
+                self.reset_entries()
             except Exception as e:
                 messagebox.showerror("Ошибка", f"Не удалось загрузить изображение: {e}")
 
@@ -74,6 +75,7 @@ class ImageEditorApp:
             self.original_image = Image.fromarray(frame)
             self.display_image = self.original_image.copy()
             self.show_image()
+            self.reset_entries()
         else:
             messagebox.showerror("Ошибка", "Не удалось сделать снимок.")
 
@@ -82,7 +84,7 @@ class ImageEditorApp:
         self.image_label.config(image=img)
         self.image_label.image = img
 
-    def show_channel(self):
+    def show_channel(self, _=None):
         if self.original_image:
             channel = self.channel_var.get()
             if channel == "red":
@@ -99,7 +101,7 @@ class ImageEditorApp:
             self.display_image = ImageOps.invert(self.original_image)
             self.show_image()
 
-    def rotate_image(self):
+    def rotate_image(self, _=None):
         if self.original_image:
             try:
                 angle = float(self.rotate_angle_entry.get())
@@ -108,11 +110,12 @@ class ImageEditorApp:
             except ValueError:
                 messagebox.showerror("Ошибка", "Пожалуйста, введите корректное значение угла.")
 
-    def draw_circle(self):
+    def draw_circle(self, _=None):
         if self.original_image:
             try:
                 coords = [int(x) for x in self.circle_coords_entry.get().split(",")]
                 diameter = int(self.circle_diameter_entry.get())
+                self.display_image = self.original_image.copy()
                 draw = ImageDraw.Draw(self.display_image)
                 draw.ellipse((coords[0], coords[1], coords[0] + diameter, coords[1] + diameter), outline="red", width=2)
                 self.show_image()
@@ -123,6 +126,11 @@ class ImageEditorApp:
         if self.original_image:
             self.display_image = self.original_image.copy()
             self.show_image()
+
+    def reset_entries(self):
+        self.rotate_angle_entry.delete(0, tk.END)
+        self.circle_coords_entry.delete(0, tk.END)
+        self.circle_diameter_entry.delete(0, tk.END)
 
 if __name__ == "__main__":
     root = tk.Tk()
