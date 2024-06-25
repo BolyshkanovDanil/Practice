@@ -1,138 +1,96 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk, ImageOps, ImageDraw
+from tkinter import filedialog
+from PIL import Image, ImageTk, ImageOps
 import cv2
-import numpy as np
+from cv2 import VideoCapture
 
-class ImageEditorApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Image Editor")
+# Функция для загрузки изображения
+def load_image():
+    global img, imgtk, original
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        img = Image.open(file_path)
+        original = img.copy()
+        imgtk = ImageTk.PhotoImage(img)
+        canvas.create_image(20, 20, anchor="nw", image=imgtk)
+        canvas.config(width=img.width, height=img.height)
 
-        self.image_label = tk.Label(root)
-        self.image_label.pack()
+# Функция для захвата изображения с камеры
+def capture_image():
+    global img, imgtk, original
+    cap = VideoCapture(0)
+    ret, frame = cap.read()
+    if ret:
+        cv2.imwrite("capture.jpg", frame)
+        img = Image.open("capture.jpg")
+        original = img.copy()
+        imgtk = ImageTk.PhotoImage(img)
+        canvas.create_image(20, 20, anchor="nw", image=imgtk)
+        canvas.config(width=img.width, height=img.height)
+    cap.release()
 
-        self.load_image_button = tk.Button(root, text="Загрузить изображение", command=self.load_image)
-        self.load_image_button.pack()
+# Показ негатива изображения
+def show_negative():
+    global img, imgtk
+    img = ImageOps.invert(img)
+    imgtk = ImageTk.PhotoImage(img)
+    canvas.create_image(20, 20, anchor="nw", image=imgtk)
 
-        self.capture_image_button = tk.Button(root, text="Загрузить изображение с камеры", command=self.capture_image)
-        self.capture_image_button.pack()
+# Вращение изображения
+def rotate_image():
+    global img, imgtk
+    img = img.rotate(90, expand=True)
+    imgtk = ImageTk.PhotoImage(img)
+    canvas.create_image(20, 20, anchor="nw", image=imgtk)
 
-        self.channel_var = tk.StringVar()
-        self.channel_var.set("red")
-        self.channel_menu = tk.OptionMenu(root, self.channel_var, "red", "green", "blue", command=self.show_channel)
-        self.channel_menu.pack()
+# Рисование круга
+def draw_circle():
+    global img, imgtk
+    x, y, r = 50, 50, 30  # Примерные координаты и радиус
+    img_draw = ImageDraw.Draw(img)
+    img_draw.ellipse((x-r, y-r, x+r, y+r), outline='red', width=5)
+    imgtk = ImageTk.PhotoImage(img)
+    canvas.create_image(20, 20, anchor="nw", image=imgtk)
 
-        self.show_negative_button = tk.Button(root, text="Показать негативное изображение", command=self.show_negative)
-        self.show_negative_button.pack()
+# Очистка эффектов
+def clear_effects():
+    global img, imgtk, original
+    img = original.copy()
+    imgtk = ImageTk.PhotoImage(img)
+    canvas.create_image(20, 20, anchor="nw", image=imgtk)
 
-        self.rotate_angle_entry = tk.Entry(root)
-        self.rotate_angle_entry.pack()
-        self.rotate_angle_entry.bind("<Return>", self.rotate_image)
-        self.rotate_button = tk.Button(root, text="Вращение изображения", command=self.rotate_image)
-        self.rotate_button.pack()
+# Выход из программы
+def exit_app():
+    root.destroy()
 
-        self.circle_coords_entry = tk.Entry(root)
-        self.circle_coords_entry.pack()
-        self.circle_diameter_entry = tk.Entry(root)
-        self.circle_diameter_entry.pack()
-        self.circle_coords_entry.bind("<Return>", self.draw_circle)
-        self.circle_diameter_entry.bind("<Return>", self.draw_circle)
-        self.draw_circle_button = tk.Button(root, text="Нарисовать красный круг", command=self.draw_circle)
-        self.draw_circle_button.pack()
+# Основное окно приложения
+root = tk.Tk()
+root.title("Image Editor")
 
-        self.clear_button = tk.Button(root, text="Clear", command=self.clear_effects)
-        self.clear_button.pack()
+# Создаем холст для изображения
+canvas = tk.Canvas(root, width=300, height=300)
+canvas.pack()
 
-        self.exit_button = tk.Button(root, text="Exit", command=root.quit)
-        self.exit_button.pack()
+# Кнопки для функций
+btn_load = tk.Button(root, text="Загрузить изображение", command=load_image)
+btn_load.pack(fill='x')
 
-        self.original_image = None
-        self.display_image = None
+btn_capture = tk.Button(root, text="Загрузить изображение с камеры", command=capture_image)
+btn_capture.pack(fill='x')
 
-    def load_image(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.png")])
-        if file_path:
-            try:
-                self.original_image = Image.open(file_path)
-                self.display_image = self.original_image.copy()
-                self.show_image()
-                self.reset_entries()
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось загрузить изображение: {e}")
+btn_negative = tk.Button(root, text="Показать негативное изображение", command=show_negative)
+btn_negative.pack(fill='x')
 
-    def capture_image(self):
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            messagebox.showerror("Ошибка", "Не удалось подключиться к веб-камере.")
-            return
+btn_rotate = tk.Button(root, text="Вращение изображения", command=rotate_image)
+btn_rotate.pack(fill='x')
 
-        ret, frame = cap.read()
-        cap.release()
+btn_circle = tk.Button(root, text="Нарисовать красный круг", command=draw_circle)
+btn_circle.pack(fill='x')
 
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            self.original_image = Image.fromarray(frame)
-            self.display_image = self.original_image.copy()
-            self.show_image()
-            self.reset_entries()
-        else:
-            messagebox.showerror("Ошибка", "Не удалось сделать снимок.")
+btn_clear = tk.Button(root, text="Clear", command=clear_effects)
+btn_clear.pack(fill='x')
 
-    def show_image(self):
-        img = ImageTk.PhotoImage(self.display_image)
-        self.image_label.config(image=img)
-        self.image_label.image = img
+btn_exit = tk.Button(root, text="Exit", command=exit_app)
+btn_exit.pack(fill='x')
 
-    def show_channel(self, _=None):
-        if self.original_image:
-            channel = self.channel_var.get()
-            if channel == "red":
-                channel_img = np.array(self.original_image)[:, :, 0]
-            elif channel == "green":
-                channel_img = np.array(self.original_image)[:, :, 1]
-            elif channel == "blue":
-                channel_img = np.array(self.original_image)[:, :, 2]
-            self.display_image = Image.fromarray(channel_img)
-            self.show_image()
-
-    def show_negative(self):
-        if self.original_image:
-            self.display_image = ImageOps.invert(self.original_image)
-            self.show_image()
-
-    def rotate_image(self, _=None):
-        if self.original_image:
-            try:
-                angle = float(self.rotate_angle_entry.get())
-                self.display_image = self.original_image.rotate(angle)
-                self.show_image()
-            except ValueError:
-                messagebox.showerror("Ошибка", "Пожалуйста, введите корректное значение угла.")
-
-    def draw_circle(self, _=None):
-        if self.original_image:
-            try:
-                coords = [int(x) for x in self.circle_coords_entry.get().split(",")]
-                diameter = int(self.circle_diameter_entry.get())
-                self.display_image = self.original_image.copy()
-                draw = ImageDraw.Draw(self.display_image)
-                draw.ellipse((coords[0], coords[1], coords[0] + diameter, coords[1] + diameter), outline="red", width=2)
-                self.show_image()
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось нарисовать круг: {e}")
-
-    def clear_effects(self):
-        if self.original_image:
-            self.display_image = self.original_image.copy()
-            self.show_image()
-
-    def reset_entries(self):
-        self.rotate_angle_entry.delete(0, tk.END)
-        self.circle_coords_entry.delete(0, tk.END)
-        self.circle_diameter_entry.delete(0, tk.END)
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = ImageEditorApp(root)
-    root.mainloop()
+root.mainloop()
